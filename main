@@ -1,0 +1,2217 @@
+
+Option Explicit
+
+Public LastDate, LowMonth, HighMonth, User_ID, My_Path, Plant, TimeStamp, strFileToOpen, My_Path_RU41, My_Path_RU64, My_Path_Previous, Previous_month, Previous_month_Filename As String
+Public flag_x, PreviousExists As Integer
+Public uf As UserForm1
+Private Declare Function _
+    CoRegisterMessageFilter Lib "OLE32.DLL" _
+    (ByVal lFilterIn As Long, _
+    ByRef lPreviousFilter) As Long
+
+Sub TestUserForm()
+ 
+ Set uf = New UserForm1
+ uf.Show 'Will make the UserForm Visible
+
+End Sub
+
+Sub KillMessageFilter()
+    
+
+    Dim lMsgFilter As Long
+
+ 
+    CoRegisterMessageFilter 0&, lMsgFilter
+
+    ''' Call your code here....
+
+    ''' Restore the message filter after calling Reflections.
+    CoRegisterMessageFilter lMsgFilter, lMsgFilter
+
+End Sub
+
+Sub main()
+
+
+flag_x = 0
+Application.ScreenUpdating = True
+sumit
+close_everything
+erase_previous
+Save1
+
+
+DeleteSheets1
+Getuser
+Get_path
+paste_previous_month
+TestUserForm
+Mcsixls
+
+MRN ("Ru64")
+MRN ("Ru41")
+
+paste_sheets
+valuation41correction
+RetrieveData
+close_everything
+Dict64
+
+
+
+close_everything
+
+
+
+
+
+PasteFormulaMcsi
+
+
+
+
+CalculationItself
+If flag_x = 1 Then
+compare
+Else
+
+End If
+InsertMRNscreen
+
+'Run_file  -закомментировано 2 октября
+
+
+End Sub
+Sub sumit()
+
+  Dim mainworkBook As Workbook
+
+  Set mainworkBook = Excel.Workbooks("Резерв.xlsm")
+
+
+
+  mainworkBook.Sheets("Расчёт резерва").Range("L2:V50000").Locked = True
+
+ '  mainworkBook.Sheets("Расчёт резерва").Protect Passowrd:="123"
+
+End Sub
+Sub paste_previous_month()
+Dim masterBook As Workbook
+Dim Buttons As Integer
+Dim sourcebook As Workbook
+Buttons = MsgBox("Cравнивать с прошлым месяцем?", vbYesNo)
+If Buttons = vbYes Then
+
+Set masterBook = Excel.Workbooks("Резерв.xlsm")
+'My_Path = "N:\OF\Order Handling\reserve\BELOSE07-06-2019-10-51-37"
+'On Error GoTo exit_
+            Application.AskToUpdateLinks = False
+
+            strFileToOpen = Application.GetOpenFilename _
+            (Title:="Где находится файл с прошлым расчётом резерва?", _
+            FileFilter:="Excel Files *.xls* (*.xls; *xlsm),")
+           ' With ActiveSheet.UsedRange
+            '    .Value = .Value
+       
+          '  End With
+ 
+                If strFileToOpen = "" Then
+                    MsgBox "No file selected.", vbExclamation, "Sorry!"
+                    Exit Sub
+                Else
+                    Workbooks.Open FileName:=strFileToOpen, UpdateLinks:=False
+                    flag_x = 1
+                    Previous_month = Application.ActiveWorkbook.FullName
+    
+                    Previous_month_Filename = Application.ActiveWorkbook.Name
+            Set sourcebook = Excel.Workbooks(Previous_month_Filename)
+                    'MsgBox Previous_month_Filename
+                    Application.DisplayAlerts = False
+                    sourcebook.SaveAs FileName:=My_Path & "\Previous.xlsx", FileFormat:=51
+                    
+                    RenameSheetInPrevious
+                    Workbooks("Previous.xlsx").Close SaveChanges:=True
+                    Application.DisplayAlerts = True
+                    PreviousExists = 1
+                    My_Path_Previous = My_Path & "\Previous.xlsx"
+                   ' MsgBox My_Path_Previous
+                End If
+    Application.AskToUpdateLinks = True
+
+   ' sourcebook.Worksheets("RU41").Copy After:=masterBook.Sheets("Расчёт резерва")
+   ' With ActiveSheet.UsedRange
+   '     .Value = .Value
+   ' End With
+
+
+    Else
+    End If
+    
+exit_:
+'MsgBox flag_x
+
+
+End Sub
+Sub RenameSheetInPrevious()
+Dim sourcebook As Workbook
+Dim Sh As Worksheet
+Dim Loc As Range
+Set sourcebook = Excel.Workbooks("Previous.xlsx")
+Dim rngFound As Range
+
+ Application.DisplayAlerts = False
+Cells(1, 1).Select ' добавлено 5 августа
+   Dim myCounter As Integer
+    For Each Sh In sourcebook.Worksheets
+    If Sh.Name = "в прошлом месяце" Then
+    Sh.Delete
+    Else
+    End If
+    Next
+    
+
+
+Cells(1, 1).Select ' добавлено 5 августа
+   For Each Sh In sourcebook.Worksheets
+   
+   'Cells.Find(What:="цена за единицу", After:=ActiveCell, LookIn:=xlFormulas _
+        , LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+        MatchCase:=False, SearchFormat:=False).Activate
+    'Cells.FindNext(After:=ActiveCell).Activate
+   'With Sh.UsedRange
+   Set Loc = Sh.Cells.Find(What:="потребление за 2 года")
+
+    If Not Loc Is Nothing Then
+    Debug.Print Loc
+Sh.Name = "в прошлом месяце"
+           'MsgBox ("Value is found  in " & Sh.Name)
+           myCounter = 1
+            GoTo exit33
+            'Set Loc = .FindNext(Loc)
+
+    End If
+'End With
+Next
+If myCounter = 0 Then
+MsgBox ("Value not present in this worrkbook")
+End If
+exit33:
+End Sub
+Sub test_pastesheet()
+Dim masterBook As Workbook
+Dim sourcebook As Workbook
+Set masterBook = Excel.Workbooks("Резерв.xlsm")
+Set sourcebook = Excel.Workbooks("2019_март резерв RU41.xlsx")
+  sourcebook.Worksheets("RU41").Copy After:=masterBook.Sheets("Расчёт резерва")
+End Sub
+Sub valuation41correction()
+Dim lRow As Long
+Sheets("MRN41").Select
+lRow = Cells(Rows.Count, 1).End(xlUp).Row
+
+    Range("F2").Select
+    Application.CutCopyMode = False
+    ActiveCell.FormulaR1C1 = "=RC[3]/RC[1]"
+    Range("F2").Select
+    Selection.AutoFill Destination:=Range("F2:F" & lRow)
+    Range("F2:F" & lRow).Select
+End Sub
+Sub clearfilter()
+'
+' clearfilter Macro
+'
+Sheets("Расчёт резерва").Select
+'
+    If ActiveSheet.AutoFilterMode Then
+ 
+     ActiveSheet.AutoFilterMode = False
+ 
+End If
+End Sub
+Sub erase_previous()
+'
+' erase_previous Macro
+'
+
+    Sheets("Расчёт резерва").Select
+'
+    Range("A2:V1048576").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Selection.ClearContents
+    
+
+
+End Sub
+Sub dots_removal()
+'
+' dots_removal Macro
+'
+Sheets("mcsi").Select
+
+    ActiveSheet.Cells.Replace What:=".", Replacement:="", LookAt:=xlPart, SearchOrder:= _
+        xlByRows, MatchCase:=False, SearchFormat:=False, ReplaceFormat:=False
+
+
+End Sub
+Sub deleteboth()
+Dim FilePath As String
+FilePath = My_Path_RU41
+ 
+'This might throw an error in case file does not exist
+
+ 
+'This will never throw an error
+If Len(Dir(FilePath)) > 0 Then
+   SetAttr FilePath, vbNormal
+   Kill FilePath
+End If
+FilePath = My_Path_RU64
+
+If Len(Dir(FilePath)) > 0 Then
+   SetAttr FilePath, vbNormal
+   Kill FilePath
+End If
+End Sub
+
+Sub DeleteSheets1()
+    Dim xWs As Worksheet
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    For Each xWs In Application.ThisWorkbook.Worksheets
+        If xWs.Name <> "Расчёт резерва" Then
+            xWs.Delete
+        End If
+    Next
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+End Sub
+Sub Getuser()
+
+
+
+Dim SapGuiAuto
+Dim SetApp
+Dim Connection
+Dim Session
+
+
+
+Set SapGuiAuto = GetObject("SAPGUI")
+Set SetApp = SapGuiAuto.GetScriptingEngine
+Set Connection = SetApp.Children(0)
+Set Session = Connection.Children(0)
+
+Session.FindById("wnd[0]").Maximize
+Session.FindById("wnd[0]/mbar/menu[4]/menu[11]").Select
+
+User_ID = Session.FindById("wnd[1]/usr/txtSYST-UNAME").Text
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+
+End Sub
+Sub Get_path()
+Dim Timetag As String
+
+
+Timetag = Replace(Now(), " ", "-", 1)
+Timetag = Replace(Timetag, ".", "-", 1)
+Timetag = Replace(Timetag, ":", "-", 1)
+ 
+My_Path = "N:\OF\Order Handling\reserve\" & User_ID & Timetag
+My_Path_RU41 = "N:\OF\Order Handling\reserve\" & User_ID & Timetag & "\ru41.XLSX"
+My_Path_RU64 = "N:\OF\Order Handling\reserve\" & User_ID & Timetag & "\ru64.XLSX"
+MkDir My_Path
+
+End Sub
+
+
+Sub Test_mcsi()
+Dim SapGuiAuto
+    Dim SetApp
+    Dim Connection
+    Dim Session
+  
+   On Error Resume Next
+    Set SapGuiAuto = GetObject("SAPGUI")
+    Set SapGuiAuto = GetObject("SAPGUISERVER")
+    Set SetApp = SapGuiAuto.GetScriptingEngine
+    Set Connection = SetApp.Children(0)
+    Set Session = Connection.Children(0)
+    
+    
+   ' Session.FindById("wnd[0]").Maximize
+'Session.FindById("wnd[0]/tbar[0]/btn[3]").Press
+'Session.FindById("wnd[1]/usr/btnSPOP-OPTION2").Press
+'Session.FindById("wnd[0]/tbar[0]/okcd").Text = "/nmcsi"
+'Session.FindById("wnd[0]").SendVKey 0
+'Session.FindById("wnd[1]/usr/lbl[1,5]").SetFocus
+'Session.FindById("wnd[1]/usr/lbl[1,5]").CaretPosition = 1
+'Session.FindById("wnd[1]").SendVKey 2
+'Session.FindById("wnd[0]/tbar[1]/btn[8]").Press
+
+Session.FindById("wnd[0]/tbar[1]/btn[6]").Press
+Session.FindById("wnd[1]/usr/ssubRAHMEN:SAPLCNFA:0111/subAUSWAHL:SAPLCNFA:0140/btnALLE_NICHT_AUSWAEHLEN").Press
+Session.FindById("wnd[1]/usr/ssubRAHMEN:SAPLCNFA:0111/subALLE_FELDER:SAPLCNFA:0130/tblSAPLCNFATC_ALLE_FELDER").GetAbsoluteRow(0).Selected = True
+Session.FindById("wnd[1]/usr/ssubRAHMEN:SAPLCNFA:0111/subAUSWAHL:SAPLCNFA:0140/btnAUSWAEHLEN").Press
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+
+End Sub
+
+Sub Save1()
+
+ThisWorkbook.Save
+End Sub
+
+Sub Mcsixls()
+'close_everything '
+' mcsixls Macro
+'
+    Dim SapGuiAuto
+    Dim SetApp
+    Dim Connection
+    Dim Session
+    
+    
+   Dim lMsgFilter As Long
+
+   
+start1:
+  
+   Application.DisplayAlerts = False
+   
+   On Error Resume Next
+    Set SapGuiAuto = GetObject("SAPGUI")
+    Set SapGuiAuto = GetObject("SAPGUISERVER")
+    Set SetApp = SapGuiAuto.GetScriptingEngine
+    Set Connection = SetApp.Children(0)
+    Set Session = Connection.Children(0)
+
+    CoRegisterMessageFilter 0&, lMsgFilter
+     ''' Remove the message filter before calling Reflections.
+    'Set SapGuiAuto = GetObject("SAPGUI")
+   ' Set SetApp = SapGuiAuto.GetScriptingEngine
+    'Set Connection = SetApp.Children(0)
+    'Set Session = Connection.Children(0)
+    
+Session.FindById("wnd[0]").Maximize
+Session.FindById("wnd[0]/tbar[0]/okcd").Text = "/nmcsi"
+Session.FindById("wnd[0]").SendVKey 0
+Session.FindById("wnd[1]/usr/lbl[1,5]").SetFocus
+Session.FindById("wnd[1]/usr/lbl[1,5]").CaretPosition = 2
+Session.FindById("wnd[1]").SendVKey 2
+Session.FindById("wnd[0]/usr/ctxtSL_0006-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtSL_0002-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtSL_0003-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtSL_0004-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtSL_0005-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtSL_0006-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtSL_0007-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtSL_0008-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtSL_WAERS").Text = ""
+Session.FindById("wnd[0]/usr/ctxtEXC_NO").Text = ""
+Session.FindById("wnd[0]/usr/btn%_SL_0006_%_APP_%-VALU_PUSH").Press
+Session.FindById("wnd[1]/tbar[0]/btn[16]").Press
+Session.FindById("wnd[1]/tbar[0]/btn[8]").Press
+Session.FindById("wnd[0]/usr/ctxtSL_SPMON-LOW").Text = LowMonth 'Month(Now()) + 1 & "." & Year(Now()) - 2
+
+Session.FindById("wnd[0]/usr/ctxtSL_SPMON-HIGH").Text = HighMonth 'Month(Now()) & "." & Year(Now())
+Session.FindById("wnd[0]").HardCopy My_Path & "\first.jpg", 1 ' здесь надо поменять адрес!
+Session.FindById("wnd[0]/usr/ctxtSL_SPMON-HIGH").SetFocus
+Session.FindById("wnd[0]/usr/ctxtSL_SPMON-HIGH").CaretPosition = 7
+Session.FindById("wnd[0]").SendVKey 0
+Session.FindById("wnd[0]/tbar[1]/btn[8]").Press
+Session.FindById("wnd[0]/tbar[1]/btn[7]").Press
+Session.FindById("wnd[1]/usr/sub:SAPLMCS2:0201/radLMCS2-MRKKZ[2,0]").Select
+Session.FindById("wnd[1]/usr/sub:SAPLMCS2:0201/radLMCS2-MRKKZ[2,0]").SetFocus
+
+
+
+
+
+
+
+
+
+
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+
+
+
+Session.FindById("wnd[0]/tbar[1]/btn[6]").Press
+Session.FindById("wnd[1]/usr/ssubRAHMEN:SAPLCNFA:0111/subAUSWAHL:SAPLCNFA:0140/btnALLE_NICHT_AUSWAEHLEN").Press
+Session.FindById("wnd[1]/usr/ssubRAHMEN:SAPLCNFA:0111/subALLE_FELDER:SAPLCNFA:0130/tblSAPLCNFATC_ALLE_FELDER").GetAbsoluteRow(0).Selected = True
+Session.FindById("wnd[1]/usr/ssubRAHMEN:SAPLCNFA:0111/subAUSWAHL:SAPLCNFA:0140/btnAUSWAEHLEN").Press
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+
+
+
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+
+Session.FindById("wnd[0]").HardCopy My_Path & "\test.jpg", 1 ' здесь надо поменять адрес!
+
+Session.FindById("wnd[0]/mbar/menu[6]/menu[5]/menu[2]/menu[1]").Select
+Session.FindById("wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[4,0]").Select
+Session.FindById("wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[4,0]").SetFocus
+
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+
+Session.FindById("wnd[0]").Maximize
+Session.FindById("wnd[0]/tbar[0]/btn[3]").Press
+Session.FindById("wnd[1]/usr/btnSPOP-OPTION2").Press
+Session.FindById("wnd[0]/tbar[0]/btn[3]").Press
+
+Workbooks("Резерв.xlsm").Activate
+    
+Sheets.Add(, Sheets(Sheets.Count)).Name = "mcsi"
+With Sheets("mcsi")
+
+ .Range("A1").Value = 1
+End With
+Columns("A:A").Select
+   ' Range("B3775").Activate
+    Selection.TextToColumns Destination:=Range("B1"), DataType:=xlDelimited, _
+        TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=False, _
+        Semicolon:=False, Comma:=False, Space:=False, Other:=False, FieldInfo _
+        :=Array(1, 1), TrailingMinusNumbers:=True
+   Range("A1").Select
+    Selection.Font.Bold = True
+    ActiveSheet.Paste
+    Range("A1:D7").Select
+    Range("A7").Activate
+    Range("A1:D7").Select
+    Range("A7").Activate
+    Selection.Cut Destination:=Range("G1:J7")
+    Range("G1:J7").Select
+    Selection.Cut Destination:=Range("G8:J14")
+    Rows("1:7").Select
+    Range("A7").Activate
+    Selection.Delete Shift:=xlUp
+    Columns("A:A").Select
+    Selection.TextToColumns Destination:=Range("A1"), DataType:=xlDelimited, _
+        TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=True, Tab:=False, _
+        Semicolon:=False, Comma:=False, Space:=True, Other:=True, OtherChar:= _
+        "|", FieldInfo:=Array(Array(1, 1), Array(2, 1), Array(3, 1), Array(4, 1)), _
+        TrailingMinusNumbers:=True
+    Columns("A:A").Select
+    Selection.Delete Shift:=xlToLeft
+    Columns("B:B").Select
+    Selection.Replace What:=".", Replacement:="", LookAt:=xlPart, _
+        SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+        ReplaceFormat:=False
+
+    Columns("A:A").ColumnWidth = 11.55
+    If Range("A7").Value = "" Then
+    Sheets("mcsi").Delete
+    GoTo start1:
+    End If
+    
+    InsertSecondMsciScreen
+    InsertFirstMsciScreen
+  ' dots_removal
+     CoRegisterMessageFilter lMsgFilter, lMsgFilter
+End Sub
+Sub InsertMRNscreen()
+'
+' pastescreen Macro
+Plant = "RU64"
+Sheets("MRN64").Activate
+
+    Range("F10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\" & Plant & "1.jpg").Select
+    
+    
+    
+       Range("J10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\" & Plant & "2.jpg").Select
+    
+    
+    Selection.ShapeRange.PictureFormat.Crop.PictureOffsetY = 82
+    
+    Range("K10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\" & Plant & "3.jpg").Select
+       
+      
+    
+    
+    
+    Range("L10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\" & Plant & "4.jpg").Select
+    
+    
+    
+
+Plant = "RU41"
+Sheets("MRN41").Activate
+
+    Range("F10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\" & Plant & "1.jpg").Select
+    
+    
+    
+    
+       Range("J10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\" & Plant & "2.jpg").Select
+    
+   
+    
+    Range("K10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\" & Plant & "3.jpg").Select
+       
+      
+    
+    
+    Range("L10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\" & Plant & "4.jpg").Select
+    
+   
+    Sheets("Расчёт резерва").Activate
+End Sub
+
+Sub InsertSecondMsciScreen()
+'
+' pastescreen Macro
+'
+
+'
+    Range("F10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\test.jpg").Select
+    
+    Selection.ShapeRange.LockAspectRatio = msoFalse
+    Selection.ShapeRange.IncrementTop 0.00007874015748
+    Selection.ShapeRange.ScaleWidth 0.625, msoFalse, msoScaleFromTopLeft
+    Selection.ShapeRange.ScaleHeight 0.6164880594, msoFalse, msoScaleFromTopLeft
+    Selection.ShapeRange.PictureFormat.Crop.PictureWidth = 792
+    Selection.ShapeRange.PictureFormat.Crop.PictureHeight = 430
+    Selection.ShapeRange.PictureFormat.Crop.PictureOffsetX = 148
+    Selection.ShapeRange.PictureFormat.Crop.PictureOffsetY = 82
+  
+ 
+
+
+ 
+  
+   
+    
+End Sub
+Sub InsertFirstMsciScreen()
+'
+' pastescreen Macro
+'
+
+'
+    Range("M10").Select
+    ActiveSheet.Pictures.Insert(My_Path & "\first.jpg").Select
+    ActiveWindow.SmallScroll Down:=3
+    Selection.ShapeRange.IncrementLeft 70
+    Selection.ShapeRange.IncrementTop -41
+    
+    Selection.ShapeRange.LockAspectRatio = msoFalse
+    Selection.ShapeRange.IncrementTop 0.00007874015748
+    Selection.ShapeRange.ScaleWidth 0.625, msoFalse, msoScaleFromTopLeft
+    Selection.ShapeRange.ScaleHeight 0.6164880594, msoFalse, msoScaleFromTopLeft
+    Selection.ShapeRange.PictureFormat.Crop.PictureWidth = 792
+    Selection.ShapeRange.PictureFormat.Crop.PictureHeight = 430
+    Selection.ShapeRange.PictureFormat.Crop.PictureOffsetX = 148
+    Selection.ShapeRange.PictureFormat.Crop.PictureOffsetY = 82
+    
+  
+   
+    
+End Sub
+Sub MRN(Plant)
+
+
+ Dim SapGuiAuto
+    Dim SetApp
+    Dim Connection
+    Dim Session
+  
+   On Error Resume Next
+    Set SapGuiAuto = GetObject("SAPGUI")
+    Set SapGuiAuto = GetObject("SAPGUISERVER")
+    Set SetApp = SapGuiAuto.GetScriptingEngine
+    Set Connection = SetApp.Children(0)
+    Set Session = Connection.Children(0)
+    
+    'Set SapGuiAuto = GetObject("SAPGUI")
+   ' Set SetApp = SapGuiAuto.GetScriptingEngine
+   ' Set Connection = SetApp.Children(0)
+   ' Set Session = Connection.Children(0)
+    
+'Plant = "Ru64"
+    
+Session.FindById("wnd[0]").Maximize
+Session.FindById("wnd[0]/tbar[0]/okcd").Text = "/nzcor_mrn1"
+Session.FindById("wnd[0]").SendVKey 0
+Session.FindById("wnd[0]/usr/ctxtP_BUKRS").Text = Plant
+Session.FindById("wnd[0]/usr/ctxtP_STDAT").Text = LastDate
+
+'добавлено 10 июля
+Session.FindById("wnd[0]/usr/chkP_SWOFF").Selected = False
+Session.FindById("wnd[0]/usr/ctxtS_MATNR-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtS_WERKS-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtS_MTART-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtS_BKLAS-LOW").Text = ""
+Session.FindById("wnd[0]/usr/ctxtS_MATKL-LOW").Text = ""
+Session.FindById("wnd[0]/usr/txtS_EMAIL-LOW").Text = ""
+Session.FindById("wnd[0]/usr/chkP_SWOFF").SetFocus
+Session.FindById("wnd[0]").SendVKey 2
+Session.FindById("wnd[0]/usr/ctxtP_WAERS").Text = ""
+Session.FindById("wnd[0]/usr/chkP_UPDAT").SetFocus
+Session.FindById("wnd[0]/usr/chkP_UPDAT").Selected = True
+Session.FindById("wnd[0]").SendVKey 2
+Session.FindById("wnd[0]/usr/chkP_UPDAT").Selected = False
+Session.FindById("wnd[0]/usr/ctxtP_VARI").Text = ""
+Session.FindById("wnd[0]/usr/ctxtP_VARI").SetFocus
+Session.FindById("wnd[0]/usr/ctxtP_VARI").CaretPosition = 0
+
+
+
+Session.FindById("wnd[0]/usr/txt%_S_WERKS_%_APP_%-TEXT").SetFocus
+Session.FindById("wnd[0]/usr/txt%_S_WERKS_%_APP_%-TEXT").CaretPosition = 5
+Session.FindById("wnd[0]").HardCopy My_Path & "\" & Plant & "1.jpg", 1
+Session.FindById("wnd[0]/usr/btn%P123019_1000").Press
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BMATP").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BBPRH").Selected = True
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVMMP").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVJMP").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BSTPS").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVMSP").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVJSP").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVERP").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVMVP").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVJVP").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BBPRS").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BBPS1").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVJBS").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BBPH1").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVJBH").Selected = False
+Session.FindById("wnd[1]/usr/radSNIWE-BREPV").SetFocus
+Session.FindById("wnd[1]").HardCopy My_Path & "\" & Plant & "2.jpg", 1
+Session.FindById("wnd[1]/usr/radSNIWE-BREPV").Select
+Session.FindById("wnd[1]/usr/radSNIWE-BNIWE").SetFocus
+Session.FindById("wnd[1]/usr/radSNIWE-BNIWE").Select
+
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+Session.FindById("wnd[0]/usr/radP_VBROG").Select
+Session.FindById("wnd[0]/usr/chkP_UPDAT").SetFocus
+Session.FindById("wnd[0]/usr/chkP_UPDAT").Selected = True
+Session.FindById("wnd[0]").HardCopy My_Path & "\" & Plant & "3.jpg", 1
+Session.FindById("wnd[0]/usr/btn%P176039_1000").Press
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-UBPRS").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-UBPS1").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-UVJBS").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-UBPRH").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-UBPH1").Selected = True
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-UVJBH").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-CHDOC").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-CHDOC").SetFocus
+Session.FindById("wnd[1]").HardCopy My_Path & "\" & Plant & "4.jpg", 1
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+Session.FindById("wnd[0]/usr/ctxtP_VARI").SetFocus
+Session.FindById("wnd[0]/usr/ctxtP_VARI").CaretPosition = 0
+Session.FindById("wnd[0]").SendVKey 2
+Session.FindById("wnd[0]").SendVKey 4
+Session.FindById("wnd[1]/usr/lbl[1,14]").SetFocus
+Session.FindById("wnd[1]/usr/lbl[1,14]").CaretPosition = 6
+Session.FindById("wnd[1]").SendVKey 2
+Session.FindById("wnd[0]/usr/ctxtP_VARI").Text = "/DETAIL_RU"
+Session.FindById("wnd[0]/tbar[1]/btn[8]").Press
+
+
+
+Session.FindById("wnd[0]/usr/cntlGRID1/shellcont/shell").SelectColumn "KONTH"
+Session.FindById("wnd[0]/tbar[1]/btn[29]").Press
+Session.FindById("wnd[1]/usr/ssub%_SUBSCREEN_FREESEL:SAPLSSEL:1105/ctxt%%DYN001-LOW").Text = "0001146000"
+Session.FindById("wnd[1]/usr/ssub%_SUBSCREEN_FREESEL:SAPLSSEL:1105/ctxt%%DYN001-LOW").CaretPosition = 10
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+
+
+
+Session.FindById("wnd[0]/tbar[1]/btn[43]").Press
+Session.FindById("wnd[1]/usr/ctxtDY_FILENAME").Text = Plant & ".XLSX"
+Session.FindById("wnd[1]/usr/ctxtDY_PATH").Text = My_Path
+
+Session.FindById("wnd[1]/usr/ctxtDY_PATH").CaretPosition = 0
+Session.FindById("wnd[1]").SendVKey 4
+Session.FindById("wnd[2]/usr/ctxtDY_PATH").SetFocus
+Session.FindById("wnd[2]/usr/ctxtDY_PATH").CaretPosition = 0
+Session.FindById("wnd[2]").SendVKey 4
+Session.FindById("wnd[3]/usr/ctxtDY_PATH").SetFocus
+Session.FindById("wnd[3]/usr/ctxtDY_PATH").CaretPosition = 0
+Session.FindById("wnd[3]/tbar[0]/btn[0]").Press
+Session.FindById("wnd[2]/tbar[0]/btn[11]").Press
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+'
+
+
+
+If InStr(1, Session.FindById("wnd[0]/sbar").Text, "exist", 1) <> 0 Then
+
+Application.SendKeys ("^s")
+Application.SendKeys ("^s")
+Application.SendKeys ("^s")
+Application.SendKeys ("^s")
+End If
+Session.FindById("wnd[0]/tbar[0]/btn[3]").Press
+Session.FindById("wnd[0]/tbar[0]/btn[3]").Press
+
+Application.Wait (Now + TimeValue("0:00:10"))
+On Error Resume Next
+Workbooks("Ru64.XLSX").Close SaveChanges:=True
+
+
+Workbooks("Ru41.XLSx").Close SaveChanges:=True
+On Error GoTo 0
+
+End Sub
+
+Sub paste_sheets()
+
+Dim wb As Workbook
+Dim link As String
+Dim masterBook As Workbook
+Dim sourcebook As Workbook
+Dim bFileOpen As Boolean
+Dim Adress_of_ru41 As String
+Dim Adress_of_ru64 As String
+Dim Adress_of_Previous As String
+Dim My_Path_old As String
+Dim My_Name_old As String
+Dim Previous_month As String
+Dim Previous_month_Filename As String
+Dim strFileToOpen As String
+Set masterBook = Excel.Workbooks("Резерв.xlsm")
+'Set sourcebook = Excel.Workbooks("Previous.xlsm")
+close_everything
+
+
+Adress_of_ru41 = My_Path_RU41
+Adress_of_ru64 = My_Path_RU64
+Adress_of_Previous = My_Path_Previous
+Save1
+
+Application.AskToUpdateLinks = False
+
+
+Set wb = Workbooks.Open(FileName:=My_Path_RU64, UpdateLinks:=False, ReadOnly:=False, IgnoreReadOnlyRecommended:=True)
+
+ActiveWorkbook.Worksheets("Sheet1").Name = "MRN64"
+
+ActiveWorkbook.Sheets.Copy After:=masterBook.Sheets("mcsi")
+
+Workbooks("Ru64.xlsx").Close SaveChanges:=False
+
+
+Set wb = Workbooks.Open(FileName:=My_Path_RU41, UpdateLinks:=False, ReadOnly:=False, IgnoreReadOnlyRecommended:=True)
+ActiveWorkbook.Worksheets("Sheet1").Name = "MRN41"
+ActiveWorkbook.Sheets.Copy After:=ThisWorkbook.Sheets("MRN64")
+Workbooks("Ru41.xlsx").Close SaveChanges:=False
+
+If PreviousExists = 1 Then
+Set wb = Workbooks.Open(FileName:=My_Path_Previous, UpdateLinks:=False, ReadOnly:=False, IgnoreReadOnlyRecommended:=True)
+
+Excel.Workbooks("Previous.xlsx").Worksheets("в прошлом месяце").Copy After:=masterBook.Sheets("Расчёт резерва")
+
+Excel.Workbooks("Previous.xlsx").Close SaveChanges:=False
+Else
+End If
+
+
+
+
+
+Application.AskToUpdateLinks = True
+close_everything
+
+
+
+
+
+
+
+    bFileOpen = IsWorkBookOpen(Adress_of_ru41)
+   
+    
+    If bFileOpen Then
+        
+        Workbooks("Ru41.xlsx").Close SaveChanges:=False
+    
+    End If
+    
+    bFileOpen = IsWorkBookOpen(Adress_of_ru64)
+   
+    
+    If bFileOpen Then
+        
+        Workbooks("Ru64.xlsx").Close SaveChanges:=False
+    
+    End If
+    
+    bFileOpen = IsWorkBookOpen(Previous_month)
+   
+    
+    If bFileOpen Then
+        
+        Workbooks(Previous_month_Filename).Close SaveChanges:=False
+    
+    End If
+    
+    
+
+End Sub
+
+
+
+
+
+Function IsWorkBookOpen(FileName As String)
+    Dim ff As Long
+    Dim ErrNo As Long
+
+    On Error Resume Next
+    ff = FreeFile()
+    Open FileName For Input Lock Read As #ff
+    Close ff
+    ErrNo = Err
+    On Error GoTo 0
+
+    Select Case ErrNo
+        Case 0
+    IsWorkBookOpen = False
+        Case 70
+    IsWorkBookOpen = True
+    Case Else
+    End Select
+End Function
+
+
+Sub sbVBA_To_Open_Workbook_FileDialog()
+Dim Previous_month As String
+Dim Previous_month_Filename As String
+Dim strFileToOpen As String
+
+Application.AskToUpdateLinks = False
+
+strFileToOpen = Application.GetOpenFilename _
+(Title:="Где находится файл с прошлым расчётом резерва?", _
+FileFilter:="Excel Files *.xls* (*.xls*),")
+With ActiveSheet.UsedRange
+        .Value = .Value
+       
+    End With
+
+If strFileToOpen = "" Then
+    MsgBox "No file selected.", vbExclamation, "Sorry!"
+    Exit Sub
+Else
+    Workbooks.Open FileName:=strFileToOpen, UpdateLinks:=False
+    Previous_month = Application.ActiveWorkbook.FullName
+    
+    Previous_month_Filename = Application.ActiveWorkbook.Name
+    MsgBox Previous_month_Filename
+End If
+Application.AskToUpdateLinks = True
+
+End Sub
+Sub MRN3()
+    Dim SapGuiAuto
+    Dim SetApp
+    Dim Connection
+    Dim Session
+  
+   
+    Set SapGuiAuto = GetObject("SAPGUI")
+    Set SetApp = SapGuiAuto.GetScriptingEngine
+    Set Connection = SetApp.Children(0)
+    Set Session = Connection.Children(0)
+Session.FindById("wnd[0]").Maximize
+'Session.FindById("wnd[0]/usr/cntlIMAGE_CONTAINER/shellcont/shell/shellcont[0]/shell").SelectedNode = "F00022"
+Session.FindById("wnd[0]/tbar[0]/okcd").Text = "zcor_mrn3"
+Session.FindById("wnd[0]").SendVKey 0
+Session.FindById("wnd[0]/usr/chkPA_UPDAT").SetFocus
+Session.FindById("wnd[0]/usr/chkPA_UPDAT").Selected = True
+Session.FindById("wnd[0]/usr/ctxtPA_BWKEY").Text = "ru41"
+Session.FindById("wnd[0]/usr/ctxtPA_BWKEY").CaretPosition = 4
+Session.FindById("wnd[0]/usr/btn%P140018_1000").Press
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVERP").Selected = False
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVMVP").Selected = True
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1101/tabpPIP/ssubSUB_1109:SAPLMYPOP:1103/chkSNIWE-BVMVP").SetFocus
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+Session.FindById("wnd[0]/usr/btn%P176027_1000").Press
+Session.FindById("wnd[1]").Close
+Session.FindById("wnd[0]/usr/btn%P176027_1000").Press
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-UBPRH").Selected = True
+Session.FindById("wnd[1]/usr/tabsTABSTRIP_1301/tabpPIP/ssubSUB_1309:SAPLMYPOP:1303/chkSNIWE-UBPRH").SetFocus
+Session.FindById("wnd[1]/tbar[0]/btn[0]").Press
+Session.FindById("wnd[0]").SendVKey 1
+Session.FindById("wnd[1]").SendVKey 12
+Session.FindById("wnd[0]/mbar/menu[0]/menu[2]").Select ' тут начинается странное
+Session.FindById("wnd[1]/tbar[0]/btn[13]").Press
+Session.FindById("wnd[1]/usr/btnSOFORT_PUSH").Press
+Session.FindById("wnd[1]/tbar[0]/btn[11]").Press
+Session.FindById("wnd[0]/mbar/menu[0]/menu[2]").Select
+Session.FindById("wnd[1]/tbar[0]/btn[13]").Press
+Session.FindById("wnd[1]/usr/btnSOFORT_PUSH").Press
+Session.FindById("wnd[1]/tbar[0]/btn[11]").Press
+Session.FindById("wnd[0]/mbar/menu[3]/menu[9]").Select
+Session.FindById("wnd[0]/tbar[0]/btn[3]").Press
+Session.FindById("wnd[0]/tbar[0]/okcd").Text = "zco_bil"
+Session.FindById("wnd[0]").SendVKey 0
+Session.FindById("wnd[0]/usr/chkP_USPR2").Selected = False
+Session.FindById("wnd[0]/usr/chkP_QBEW").Selected = True
+Session.FindById("wnd[0]/usr/chkP_MBEW").Selected = True
+Session.FindById("wnd[0]/usr/chkP_EBEW").Selected = True
+Session.FindById("wnd[0]/usr/chkP_USPR1").Selected = True
+Session.FindById("wnd[0]/usr/ctxtP_VARI").Text = "/DETAIL_RU"
+Session.FindById("wnd[0]/usr/ctxtP_VARS").Text = "/total_ru"
+Session.FindById("wnd[0]/usr/ctxtP_VARS").SetFocus
+Session.FindById("wnd[0]/usr/ctxtP_VARS").CaretPosition = 9
+Session.FindById("wnd[0]/tbar[1]/btn[8]").Press
+End Sub
+Sub close_everything()
+On Error Resume Next
+Workbooks("Ru64.XLSX").Close SaveChanges:=True
+
+
+Workbooks("Previous.xlsx").Close SaveChanges:=True
+
+
+Workbooks("Ru41.XLSx").Close SaveChanges:=True
+On Error GoTo 0
+
+
+
+
+
+End Sub
+Sub Run_file()
+
+Dim Wshell
+Set Wshell = CreateObject("WScript.Shell")
+Wshell.Run "C:\Users\" & User_ID & "\Downloads\SAP_Workbook_Close41.vbs", 1, False
+Wshell.Run "C:\Users\" & User_ID & "\Downloads\SAP_Workbook_Close64.vbs", 1, False
+
+End Sub
+
+Sub RetrieveData()
+
+Dim wb As Workbook
+Dim ws_A As Worksheet
+Dim ws_B As Worksheet
+
+Dim HeaderRow_A As Long
+Dim HeaderLastColumn_A As Long
+Dim TableColStart_A As Long
+Dim NameList_A As Object
+Dim SourceDataStart As Long
+Dim SourceLastRow As Long
+Dim Source As Variant
+
+Dim i As Long
+
+Dim ws_B_lastCol As Long
+Dim NextEntryline As Long
+Dim SourceCol_A As Long
+
+Set wb = ActiveWorkbook
+Set ws_A = wb.Worksheets("MRN41")
+Set ws_B = wb.Worksheets("Расчёт резерва")
+Set NameList_A = CreateObject("Scripting.Dictionary")
+
+With ws_A
+    SourceDataStart = 2
+    HeaderRow_A = 1  'set the header row in sheet A
+    TableColStart_A = 1 'Set start col in sheet A
+    HeaderLastColumn_A = .Cells(HeaderRow_A, Columns.Count).End(xlToLeft).Column  'Get number of NAMEs you have
+
+    For i = TableColStart_A To HeaderLastColumn_A
+        If Not NameList_A.Exists(UCase(.Cells(HeaderRow_A, i).Value)) Then  'check if the name exists in the dictionary
+             NameList_A.Add UCase(.Cells(HeaderRow_A, i).Value), i 'if does not exist record name as KEY and Column number as value in dictionary
+             
+        End If
+    Next i
+
+End With
+
+
+
+
+
+
+With ws_B  'worksheet you want to paste data into
+    ws_B_lastCol = .Cells(HeaderRow_A, Columns.Count).End(xlToLeft).Column ' Get number of DATA you have in sheet B
+    For i = 1 To ws_B_lastCol - 2 'for each data
+        SourceCol_A = NameList_A(UCase(.Cells(1, i).Value))  'get the column where the name is in Sheet A from the dictionaary
+
+        If SourceCol_A <> 0 Then  'if 0 means the name doesnt exists
+            SourceLastRow = ws_A.Cells(Rows.Count, SourceCol_A).End(xlUp).Row
+            Set Source = ws_A.Range(ws_A.Cells(SourceDataStart, SourceCol_A), ws_A.Cells(SourceLastRow, SourceCol_A))
+            NextEntryline = .Cells(Rows.Count, i).End(xlUp).Row + 1 'get the next entry line of the particular name in sheet A
+
+            .Range(.Cells(NextEntryline, i), _
+                   .Cells(NextEntryline, i)) _
+                   .Resize(Source.Rows.Count, Source.Columns.Count).Cells.Value = Source.Cells.Value
+                   'Debug.Print .Cells(1, i).Value
+        End If
+
+    Next i
+End With
+
+
+End Sub
+Sub Dict64()
+
+Dim HeaderRow_A As Long
+Dim Lastline As Long
+Dim HeaderLastColumn_A As Long
+Dim TableColStart_A As Long
+Dim NameList_A As Object
+Dim SourceDataStart As Long
+Dim SourceLastRow As Long
+Dim Source As Variant
+
+Dim i As Long
+Dim ColumnNumPrice As Integer
+Dim ColumnNumArt As Integer
+
+Dim ws_B_lastCol As Long
+Dim NextEntryline As Long
+Dim SourceCol_A As Long
+
+Dim wb As Workbook
+Dim ws_C As Worksheet
+Dim ws_B As Worksheet
+Set wb = ActiveWorkbook
+Set ws_C = wb.Worksheets("MRN64")
+Set ws_B = wb.Worksheets("Расчёт резерва")
+Dim Firstdict As Object
+Set Firstdict = CreateObject("Scripting.Dictionary")
+Dim Seconddict As Object
+Set Seconddict = CreateObject("Scripting.Dictionary")
+
+With ws_C
+    SourceDataStart = 2
+    Lastline = .Cells(Rows.Count, "A").End(xlUp).Row
+    HeaderRow_A = 1  'set the header row in sheet A
+    TableColStart_A = 1 'Set start col in sheet A
+    HeaderLastColumn_A = .Cells(HeaderRow_A, Columns.Count).End(xlToLeft).Column  'Get number of NAMEs you have
+
+    For i = TableColStart_A To HeaderLastColumn_A
+        If Not Firstdict.Exists(UCase(.Cells(HeaderRow_A, i).Value)) Then  'check if the name exists in the dictionary
+             Firstdict.Add UCase(.Cells(HeaderRow_A, i).Value), i 'if does not exist record name as KEY and Column number as value in dictionary
+             
+             
+             
+        End If
+    Next i
+
+
+
+'MsgBox Cells(2, Firstdict.Item("MATERIAL")).Value
+'MsgBox Cells(2, Firstdict.Item("VALUATION PRICE")).Value
+For i = 2 To Lastline
+        Seconddict.Add UCase(.Cells(i, Firstdict.Item("MATERIAL")).Value), UCase(.Cells(i, Firstdict.Item("VALUATION PRICE")).Value)
+
+Next i
+'
+End With
+
+With ws_B  'worksheet you want to paste data into
+
+    ws_B_lastCol = .Cells(HeaderRow_A, Columns.Count).End(xlToLeft).Column ' Get number of DATA you have in sheet B
+    
+    For i = 1 To ws_B_lastCol - 2 'for each data
+    
+            If UCase(.Cells(1, i).Value) = "VALUATION PRICE" Then ColumnNumPrice = i
+            If UCase(.Cells(1, i).Value) = "MATERIAL" Then ColumnNumArt = i
+            
+    
+            
+    
+    Next i
+    
+'MsgBox .Cells(2, 1).Value
+'MsgBox Seconddict.Item("31665")
+'MsgBox Seconddict(CStr(.Cells(2, 1).Value))
+
+Lastline = .Cells(Rows.Count, "A").End(xlUp).Row
+
+
+For i = 2 To Lastline
+If (.Cells(i, ColumnNumPrice).Value) = 0 Then
+
+.Cells(i, ColumnNumPrice).Value = Val(Seconddict(CStr(.Cells(i, ColumnNumArt).Value)))
+
+End If
+
+Next i
+
+
+End With
+
+
+
+End Sub
+
+
+Sub PasteFormulaMcsi()
+
+
+Dim wb As Workbook
+
+Dim ws_B As Worksheet
+Set wb = ThisWorkbook
+Workbooks("Резерв.xlsm").Activate
+
+Set ws_B = wb.Worksheets("Расчёт резерва")
+Sheets("Расчёт резерва").Select
+With ws_B.Cells(2, 10)
+   Worksheets("Расчёт резерва").Cells(2, 10).FormulaR1C1 = _
+        "=IF(ISNA(VLOOKUP(RC[-9],mcsi!C[-9]:C[-8],2,FALSE)),0,VLOOKUP(RC[-9],mcsi!C[-9]:C[-8],2,FALSE))"
+
+    'Range("J2").AutoFill Destination:=Range("J2:J2636")
+    Range("J2").Copy
+    Range("J2:J5000").PasteSpecial xlPasteFormulas
+
+End With
+With ws_B.Cells(2, 11)
+   Worksheets("Расчёт резерва").Cells(2, 11).FormulaR1C1 = _
+        "=RC[-1]/2"
+
+  
+    Range("K2").Copy
+    Range("K2:K2636").PasteSpecial xlPasteFormulas
+
+End With
+
+
+
+
+End Sub
+Sub Sample()
+    Dim Ret
+My_Path_RU41 = "N:\OF\Order Handling\reserve\BELOSE16-05-2019-11-57-11\ru64.XLSX"
+    Ret = IsWorkBookOpen(My_Path_RU41)
+
+
+    If Ret = True Then
+        MsgBox "File is open"
+        
+    Else
+        MsgBox "File is Closed"
+    End If
+End Sub
+Sub testWorkbookOpen()
+    Dim strBookName As String
+    strBookName = "Ru64.XLSX"
+    If WorkbookOpen(strBookName) Then
+        MsgBox strBookName & " is open", vbOKOnly + vbInformation
+    Else
+        MsgBox strBookName & " is NOT open", vbOKOnly + vbExclamation
+    End If
+     
+    strBookName = "Ru41.XLSX"
+    If WorkbookOpen(strBookName) Then
+        MsgBox strBookName & " is open", vbOKOnly + vbInformation
+    Else
+        MsgBox strBookName & " is NOT open", vbOKOnly + vbExclamation
+    End If
+End Sub
+
+Function WorkbookOpen(strWorkBookName As String) As Boolean
+    'Returns TRUE if the workbook is open
+    Dim oXL As Excel.Application
+    Dim oBk As Workbook
+
+    On Error Resume Next
+    Set oXL = GetObject(, "Excel.Application")
+    If Err.Number <> 0 Then
+        'Excel is NOT open, so the workbook cannot be open
+        Err.Clear
+        WorkbookOpen = False
+    Else
+        'Excel is open, check if workbook is open
+        Set oBk = oXL.Workbooks(strWorkBookName)
+        If oBk Is Nothing Then
+            WorkbookOpen = False
+        Else
+            WorkbookOpen = True
+            Set oBk = Nothing
+        End If
+    End If
+    Set oXL = Nothing
+End Function
+Sub CalculationItself()
+Dim wb As Workbook
+Dim Lastline As Long
+
+Dim ws_B As Worksheet
+Set wb = ActiveWorkbook
+Set ws_B = wb.Worksheets("Расчёт резерва")
+
+
+With ws_B
+Lastline = .Cells(Rows.Count, "A").End(xlUp).Row
+Debug.Print Lastline
+End With
+
+Range("I2").Select
+    ActiveCell.FormulaR1C1 = "=RC[-6]"
+    Range("I2").Select
+    Selection.AutoFill Destination:=Range("I2:I2636")
+    Range("I2:I2636").Select
+    Range("L2").Select
+    ActiveCell.FormulaR1C1 = "=IFERROR(RC[-8]/RC[-1],""no consumption"")"
+    Range("L2").Select
+    ActiveCell.FormulaR1C1 = "=IFERROR(RC[-8]/RC[-1],""no consumption"")"
+    Range("L2").Select
+    Selection.AutoFill Destination:=Range("L2:L5333")
+    Range("L2:L5333").Select
+    Range("M2").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>1,RC[-2],RC[-9])"
+    Range("N2").Select
+    ActiveCell.FormulaR1C1 = "=RC[-1]*0"
+    Range("O2").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IFERROR(IF(RC[-4]>RC[-11],0,IF(RC[-11]/RC[-4]<=2,RC[-11]-RC[-4],RC[-2])),0)"
+    Range("P2").Select
+    ActiveCell.FormulaR1C1 = "=0.5*RC[-1]*RC[-7]"
+    Range("Q2").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IFERROR(IF(AND(RC[-13]/RC[-6]>2,RC[-13]/RC[-6]<=4),RC[-13]-RC[-6]-RC[-2],IF(RC[-13]/RC[-6]<=2,0,2*RC[-6])),0)"
+    Range("R2").Select
+    ActiveCell.FormulaR1C1 = "=0.75*RC[-1]*RC[-9]"
+    Range("S2").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-15]>4*RC[-8],RC[-15]-4*RC[-8],0)"
+    Range("T2").Select
+    ActiveCell.FormulaR1C1 = "=RC[-1]*RC[-11]"
+    Range("U2").Select
+    ActiveCell.FormulaR1C1 = "=RC[-17]-RC[-8]-RC[-6]-RC[-2]-RC[-4]"
+    Range("V2").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IF(OR(RC[-15]<>"""",RC[-14]<>""""),0,RC[-8]+RC[-6]+RC[-4]+RC[-2])"
+    Range("L2:V2").Select
+    Selection.AutoFill Destination:=Range("L2:V" & Lastline)
+    'Range("L2:V5721").Select
+    Range("W1").Select
+    ActiveCell.FormulaR1C1 = "=SUM(C[-1])"
+    Range("W2").Select
+
+End Sub
+Sub compare()
+'
+' compare Macro
+'
+Dim ws As Worksheet
+Dim Lastline As Long
+Set ws = ThisWorkbook.Sheets.Add(After:= _
+             ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    ws.Name = "Сравнение"
+'
+   
+  
+
+
+
+
+   
+    Range("A2").Select
+    ActiveCell.FormulaR1C1 = "артикул"
+    Range("B2").Select
+    ActiveCell.FormulaR1C1 = "наименование"
+    Range("A3").Select
+    Sheets("Расчёт резерва").Select
+    ActiveWindow.ScrollColumn = 1
+    Range("A2").Select
+    Range("A2:B2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Selection.Copy
+    Sheets("Сравнение").Select
+    ActiveSheet.Paste
+    Sheets("в прошлом месяце").Select
+    Range("A2:B2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Sheets("Сравнение").Select
+    Range("A29").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWindow.SmallScroll Down:=15
+    Range("A1766").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    
+   
+    Range("A2:B2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveSheet.Range("$A$2:$B$3528").RemoveDuplicates Columns:=1, Header:= _
+        xlYes
+    Columns("B:B").EntireColumn.AutoFit
+    With ws
+    
+    Lastline = .Cells(Rows.Count, "A").End(xlUp).Row
+    Debug.Print Lastline
+    End With
+    Range("C1").Select
+    ActiveCell.FormulaR1C1 = "В прошлом месяце"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "в этом месяце"
+    Columns("C:D").Select
+    Columns("C:D").EntireColumn.AutoFit
+    Columns("C:D").EntireColumn.AutoFit
+    Range("E2").Select
+    ActiveCell.FormulaR1C1 = "Рост резерва"
+    Range("E3").Select
+    Columns("E:E").EntireColumn.AutoFit
+    Range("C2").Select
+    ActiveCell.FormulaR1C1 = "Резерв"
+    Range("D2").Select
+    ActiveCell.FormulaR1C1 = "Резерв"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "В этом месяце"
+    Range("D3").Select
+    
+    
+    Range("C1").Select
+    Selection.Cut Destination:=Range("E1")
+    Range("D1:E1").Select
+    Selection.Cut Destination:=Range("C1:D1")
+    Range("C3").Select
+    
+    Range("C3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('Расчёт резерва'!C[19],'Расчёт резерва'!C[-2],Сравнение!C[-2])"
+    Range("C3").Select
+    Selection.AutoFill Destination:=Range("C3:C" & Lastline)
+    Range("C3:C" & Lastline).Select
+    Range("D3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('в прошлом месяце'!C[18],'в прошлом месяце'!C[-3],Сравнение!C[-3])"
+    Range("D3").Select
+    Selection.AutoFill Destination:=Range("D3:D" & Lastline)
+    Range("D3:D" & Lastline).Select
+    
+    Columns("D:D").EntireColumn.AutoFit
+    Range("E3").Select
+    ActiveCell.FormulaR1C1 = "=RC[-2]-RC[-1]"
+    Range("E3").Select
+    Selection.AutoFill Destination:=Range("E3:E" & Lastline)
+    Range("E3:E" & Lastline).Select
+    Range("A2:E2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    
+    Selection.AutoFilter
+    ActiveWorkbook.Worksheets("Сравнение").AutoFilter.Sort.SortFields.Clear
+    ActiveWorkbook.Worksheets("Сравнение").AutoFilter.Sort.SortFields.Add Key:= _
+        Range("E2:E" & Lastline), SortOn:=xlSortOnValues, Order:=xlDescending, DataOption _
+        :=xlSortNormal
+    With ActiveWorkbook.Worksheets("Сравнение").AutoFilter.Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    Range("F2").Select
+    
+
+    Range("F2").Select
+    ActiveCell.FormulaR1C1 = "New material"
+    Range("F2").Select
+    Selection.AutoFill Destination:=Range("F2:G2"), Type:=xlFillDefault
+    Range("F2:G2").Select
+    Columns("G:G").EntireColumn.AutoFit
+    Range("H2").Select
+    Columns("F:F").EntireColumn.AutoFit
+    Range("C1:D1").Select
+    Selection.Copy
+    Range("F1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    
+    Range("F3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IFNA(VLOOKUP(Сравнение!C[-5],'Расчёт резерва'!C[-5]:C[1],7,FALSE),0)"
+  
+    Range("G3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IFNA(VLOOKUP(Сравнение!C[-6],'в прошлом месяце'!C[-6]:C,7,FALSE),0)"
+    Range("F1:G1").Select
+    Selection.Copy
+    Range("I1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    
+    Range("I2").Select
+    ActiveCell.FormulaR1C1 = "moved 1st"
+    Range("I2").Select
+    Selection.Copy
+    Range("J2").Select
+    ActiveSheet.Paste
+    Columns("I:I").EntireColumn.AutoFit
+    Range("I3").Select
+    Columns("J:J").EntireColumn.AutoFit
+    Application.CutCopyMode = False
+    Range("I3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IFNA(VLOOKUP(Сравнение!C[-8],'Расчёт резерва'!C[-8]:C[-1],8,FALSE),0)"
+    Range("J3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IFNA(VLOOKUP(Сравнение!C[-9],'в прошлом месяце'!C[-9]:C[-2],8,FALSE),0)"
+    Range("F3:J3").Select
+    Selection.AutoFill Destination:=Range("F3:J" & Lastline)
+    Range("F3:J" & Lastline).Select
+    ActiveWindow.SmallScroll Down:=102
+    ActiveWindow.ScrollRow = 73
+    ActiveWindow.ScrollRow = 28
+    ActiveWindow.ScrollRow = 1
+    Rows("2:2").Select
+    Selection.AutoFilter
+    Selection.AutoFilter
+    Range("F3:J3").Select
+    Range(Selection, Selection.End(xlDown)).Select
+   
+    ActiveSheet.Range("$A$2:$J$" & Lastline).AutoFilter Field:=6
+    Range("F3:J3").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    Selection.Replace What:="X", Replacement:="1", LookAt:=xlPart, _
+        SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+        ReplaceFormat:=False
+    Range("K3").Select
+    Application.CutCopyMode = False
+    
+    Range("G14").Select
+    ActiveWindow.SmallScroll Down:=6
+    Windows("Резерв.xlsm").Activate
+    ActiveWindow.SmallScroll Down:=-6
+    Range("H3").Select
+    ActiveCell.FormulaR1C1 = "=RC[-1]-RC[-2]"
+    Range("H3").Select
+    Selection.AutoFill Destination:=Range("H3:H" & Lastline)
+    Range("H3:H" & Lastline).Select
+    Range("H2").Select
+    ActiveCell.FormulaR1C1 = "Изменение"
+    Range("H2").Select
+    Selection.Copy
+    Range("K2").Select
+    ActiveSheet.Paste
+    Range("H3").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Range("K3").Select
+    ActiveSheet.Paste
+    Range("K3").Select
+    Application.CutCopyMode = False
+    ActiveCell.FormulaR1C1 = "=RC[-1]-RC[-2]"
+    Range("K3").Select
+    Selection.AutoFill Destination:=Range("K3:K" & Lastline)
+    Range("K3:K" & Lastline).Select
+    Columns("E:E").Select
+    Selection.Style = "Currency"
+    Columns("C:D").Select
+    Selection.Style = "Currency"
+    Range("L3").Select
+    Columns("K:K").ColumnWidth = 9.73
+    Rows("1:1").RowHeight = 44
+    Rows("1:1").Select
+    With Selection
+        .HorizontalAlignment = xlGeneral
+        .VerticalAlignment = xlBottom
+        .WrapText = True
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+    Range("F1:G1").Select
+    Selection.Copy
+    Range("L1").Select
+    ActiveSheet.Paste
+    Range("L2").Select
+    Sheets("Расчёт резерва").Select
+    Range("D1").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Sheets("Сравнение").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    
+    Selection.AutoFill Destination:=Range("L2:M2"), Type:=xlFillDefault
+    Range("L2:M2").Select
+    Range("L2").Select
+    Selection.Copy
+    Range("A2:K2").Select
+    Range("K2").Activate
+    Selection.PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+    Range("M3").Select
+    Selection.PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+    Application.CutCopyMode = False
+    Range("L3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('Расчёт резерва'!C[-8],'Расчёт резерва'!C[-11],Сравнение!C[-11])"
+    Range("L3").Select
+    Selection.AutoFill Destination:=Range("L3:L" & Lastline)
+    Range("L3:L" & Lastline).Select
+    Sheets("Сравнение").Select
+    Range("M3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('в прошлом месяце'!C[-9],'в прошлом месяце'!C[-12],Сравнение!C[-12])"
+    Range("M3").Select
+    Selection.AutoFill Destination:=Range("M3:M" & Lastline)
+    Range("M3:M" & Lastline).Select
+    Range("L3").Select
+    Selection.Copy
+    Range("M3").Select
+    Selection.PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+    Application.CutCopyMode = False
+    Selection.AutoFill Destination:=Range("M3:M" & Lastline)
+    Range("M3:M" & Lastline).Select
+    Range("H2").Select
+    Selection.Copy
+    Range("N2").Select
+    ActiveSheet.Paste
+    Range("N3").Select
+    Application.CutCopyMode = False
+    ActiveCell.FormulaR1C1 = "=RC[-2]-RC[-1]"
+    Range("N3").Select
+    Selection.AutoFill Destination:=Range("N3:N" & Lastline)
+    Range("N3:N" & Lastline).Select
+    
+    Columns("M:M").ColumnWidth = 9.36
+    Columns("M:M").ColumnWidth = 11.36
+    
+    Range("O3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('Расчёт резерва'!C[-4],'Расчёт резерва'!C[-14],Сравнение!C[-14])"
+    Range("O4").Select
+    Sheets("Расчёт резерва").Select
+    Range("K1").Select
+    Selection.Copy
+    Sheets("Сравнение").Select
+    Range("O2").Select
+    ActiveSheet.Paste
+    Range("J4").Select
+    ActiveWindow.ScrollColumn = 2
+    Range("O3").Select
+    Application.CutCopyMode = False
+    Range("P3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('в прошлом месяце'!C[-5],'в прошлом месяце'!C[-15],Сравнение!C[-15])"
+    Range("O2").Select
+    Selection.Copy
+    Range("P2").Select
+    ActiveSheet.Paste
+    Range("L1:M1").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Range("O1").Select
+    ActiveSheet.Paste
+    Range("O3:P3").Select
+    Application.CutCopyMode = False
+    Selection.AutoFill Destination:=Range("O3:P" & Lastline)
+    Range("O3:P" & Lastline).Select
+    Range("P2").Select
+    ActiveWindow.SmallScroll ToRight:=2
+    Range("Q3").Select
+    ActiveCell.FormulaR1C1 = "=RC[-1]-RC[-2]"
+    Range("Q4").Select
+    
+    Range("Q3").Select
+    Selection.AutoFill Destination:=Range("Q3:Q" & Lastline)
+    Range("Q3:Q" & Lastline).Select
+    Range("N2").Select
+    Selection.Copy
+    Range("Q2").Select
+    ActiveSheet.Paste
+    Range("N2").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Range("J2:V2").Select
+    Selection.PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+    Application.CutCopyMode = False
+    With Selection
+        .HorizontalAlignment = xlGeneral
+        .VerticalAlignment = xlTop
+        .WrapText = True
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+    Range("Q1").Select
+    Columns("Q:Q").EntireColumn.AutoFit
+    Range("R3").Select
+    ActiveCell.FormulaR1C1 = "=if"
+    Range("R3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>0,""упала оборачиваемость"","""")"
+    Range("R3").Select
+    Selection.AutoFill Destination:=Range("R3:R" & Lastline)
+    Range("R3:R" & Lastline).Select
+    Columns("O:O").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("S3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>0,""упала оборачиваемость;"","""")"
+    Range("S3").Select
+    Selection.AutoFill Destination:=Range("S3:S" & Lastline)
+    Range("S3:S" & Lastline).Select
+    Range("O3").Select
+    ActiveCell.FormulaR1C1 = "=if"
+    Range("O3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>0,""увеличился склад;"","""")"
+    Range("O3").Select
+    Selection.AutoFill Destination:=Range("O3:O" & Lastline)
+    Range("O3:O" & Lastline).Select
+    Columns("L:L").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("L3").Select
+    ActiveCell.FormulaR1C1 = "="
+    
+    Range("L3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>1,"" пропала галочка moved first"","""")"
+    Range("L3").Select
+    Selection.AutoFill Destination:=Range("L3:L" & Lastline)
+    Range("L3:L" & Lastline).Select
+    Columns("I:I").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("I3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IF(RC[-1]>=1,"" пропала галочка New Material; "","""")"
+    Range("I3").Select
+    Selection.AutoFill Destination:=Range("I3:I" & Lastline)
+    Range("I3:I" & Lastline).Select
+    Range("M3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>=1,"" пропала галочка moved first"","""")"
+    Range("M3").Select
+    Selection.AutoFill Destination:=Range("M3:M" & Lastline)
+    Range("M3:M" & Lastline).Select
+    
+    Range("Q3").Select
+    ActiveWindow.ScrollColumn = 5
+    Columns("U:U").EntireColumn.AutoFit
+    Range("V3").Select
+    ActiveCell.FormulaR1C1 = "=CONCATENATE(RC[-13],RC[-9],RC[-5],RC[-1])"
+    Range("V3").Select
+    Selection.AutoFill Destination:=Range("V3:V" & Lastline)
+    Range("V3:V" & Lastline).Select
+    Range("V2").Select
+    ActiveCell.FormulaR1C1 = "Причина"
+    Range("V3").Select
+    Columns("U:U").Select
+    Application.CutCopyMode = False
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Selection.ColumnWidth = 16.55
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("R1:S1").Select
+    Selection.Copy
+    Range("U1").Select
+   
+    Range("U2").Select
+    Application.CutCopyMode = False
+    ActiveCell.FormulaR1C1 = "цена за единицу"
+    Range("V2").Select
+   
+    Columns("U:U").EntireColumn.AutoFit
+    Columns("W:W").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("W2").Select
+    ActiveCell.FormulaR1C1 = "разница"
+    
+    
+    Range("U3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('Расчёт резерва'!C[-18],'Расчёт резерва'!C[-20],Сравнение!C[-20])"
+    Range("V3").Select
+ 
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('в прошлом месяце'!C[-19],'в прошлом месяце'!C[-21],Сравнение!C[-21])"
+    Range("U3:V3").Select
+    Selection.AutoFill Destination:=Range("U3:V" & Lastline)
+    Range("U3:V" & Lastline).Select
+    Range("W3").Select
+    ActiveCell.FormulaR1C1 = "=RC[-2]-RC[-1]"
+    Range("W3").Select
+    Selection.AutoFill Destination:=Range("W3:W" & Lastline)
+    Range("W3:W" & Lastline).Select
+    
+    
+    Range("U3:W3").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Selection.Style = "Currency"
+    Range("X1").Select
+    Selection.Cut
+    Range("U1").Select
+    Columns("X:X").Select
+    Selection.Cut
+    Columns("U:U").Select
+    Selection.Insert Shift:=xlToRight
+    Columns("Y:Y").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("Y3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>10,"" возросла цена за единицу;"","""")"
+    Range("Y3").Select
+    Selection.AutoFill Destination:=Range("Y3:Y" & Lastline)
+    Range("Y3:Y" & Lastline).Select
+    Range("Z3").Select
+    ActiveCell.FormulaR1C1 = "=CONCATENATE(RC[-17],RC[-13],RC[-9],RC[-5],RC[-1])"
+    Range("Z3").Select
+    Selection.AutoFill Destination:=Range("Z3:Z" & Lastline)
+    Range("Z3:Z" & Lastline).Select
+    Columns("Z:Z").Select
+    Selection.Cut
+    Columns("F:F").Select
+    Selection.Insert Shift:=xlToRight
+    
+    
+    Columns("A:A").EntireColumn.AutoFit
+    Range("F3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IF(RC[-1]<>0,CONCATENATE(RC[4],RC[8],RC[12],RC[16],RC[20]),"""")"
+    Range("F3").Select
+    Selection.AutoFill Destination:=Range("F3:F" & Lastline)
+    Range("F3:F" & Lastline).Select
+End Sub
+Sub testdate()
+Dim firstDay As String
+Dim lastDay As String
+firstDay = DateSerial(Year(DateAdd("m", -1, Now)), Month(DateAdd("m", -1, Now)), 1)
+lastDay = DateAdd("d", -1, DateSerial(Year(Now), Month(Now), 1))
+End Sub
+
+
+Sub compare()
+'
+' compare Macro
+'
+Set ws = ThisWorkbook.Sheets.Add(After:= _
+             ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    ws.Name = "Сравнение"
+'
+   
+    Range("A2").Select
+    ActiveCell.FormulaR1C1 = "артикул"
+    Range("B2").Select
+    ActiveCell.FormulaR1C1 = "наименование"
+    Range("A3").Select
+    Sheets("Расчёт резерва").Select
+    ActiveWindow.ScrollColumn = 1
+    Range("A2").Select
+    Range("A2:B2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Selection.Copy
+    Sheets("Сравнение").Select
+    ActiveSheet.Paste
+    Sheets("в прошлом месяце").Select
+    Range("A2:B2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Sheets("Сравнение").Select
+    Range("A29").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWindow.SmallScroll Down:=15
+    Range("A1766").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    
+    ActiveWindow.ScrollRow = 1580
+    ActiveWindow.ScrollRow = 1489
+    ActiveWindow.ScrollRow = 1223
+    ActiveWindow.ScrollRow = 881
+    ActiveWindow.ScrollRow = 354
+    ActiveWindow.ScrollRow = 258
+    ActiveWindow.ScrollRow = 179
+    ActiveWindow.ScrollRow = 36
+    ActiveWindow.ScrollRow = 1
+    Range("A2:B2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveSheet.Range("$A$2:$B$3528").RemoveDuplicates Columns:=1, Header:= _
+        xlYes
+    Columns("B:B").EntireColumn.AutoFit
+    Range("C1").Select
+    ActiveCell.FormulaR1C1 = "В прошлом месяце"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "в этом месяце"
+    Columns("C:D").Select
+    Columns("C:D").EntireColumn.AutoFit
+    Columns("C:D").EntireColumn.AutoFit
+    Range("E2").Select
+    ActiveCell.FormulaR1C1 = "Рост резерва"
+    Range("E3").Select
+    Columns("E:E").EntireColumn.AutoFit
+    Range("C2").Select
+    ActiveCell.FormulaR1C1 = "Резерв"
+    Range("D2").Select
+    ActiveCell.FormulaR1C1 = "Резерв"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "В этом месяце"
+    Range("D3").Select
+    
+    
+    Range("C1").Select
+    Selection.Cut Destination:=Range("E1")
+    Range("D1:E1").Select
+    Selection.Cut Destination:=Range("C1:D1")
+    Range("C3").Select
+    
+    Range("C3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('Расчёт резерва'!C[19],'Расчёт резерва'!C[-2],Сравнение!C[-2])"
+    Range("C3").Select
+    Selection.AutoFill Destination:=Range("C3:C1765")
+    Range("C3:C1765").Select
+    Range("D3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('в прошлом месяце'!C[18],'в прошлом месяце'!C[-3],Сравнение!C[-3])"
+    Range("D3").Select
+    Selection.AutoFill Destination:=Range("D3:D1765")
+    Range("D3:D1765").Select
+    
+    Columns("D:D").EntireColumn.AutoFit
+    Range("E3").Select
+    ActiveCell.FormulaR1C1 = "=RC[-2]-RC[-1]"
+    Range("E3").Select
+    Selection.AutoFill Destination:=Range("E3:E1765")
+    Range("E3:E1765").Select
+    Range("A2:E2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    ActiveWindow.ScrollRow = 1726
+    ActiveWindow.ScrollRow = 1708
+    ActiveWindow.ScrollRow = 1669
+    ActiveWindow.ScrollRow = 1535
+    ActiveWindow.ScrollRow = 1494
+    ActiveWindow.ScrollRow = 1232
+    ActiveWindow.ScrollRow = 1185
+    ActiveWindow.ScrollRow = 866
+    ActiveWindow.ScrollRow = 811
+    ActiveWindow.ScrollRow = 547
+    ActiveWindow.ScrollRow = 461
+    ActiveWindow.ScrollRow = 423
+    ActiveWindow.ScrollRow = 335
+    ActiveWindow.ScrollRow = 282
+    ActiveWindow.ScrollRow = 172
+    ActiveWindow.ScrollRow = 109
+    ActiveWindow.ScrollRow = 30
+    ActiveWindow.ScrollRow = 18
+    ActiveWindow.ScrollRow = 6
+    ActiveWindow.ScrollRow = 1
+    Selection.AutoFilter
+    ActiveWorkbook.Worksheets("Сравнение").AutoFilter.Sort.SortFields.Clear
+    ActiveWorkbook.Worksheets("Сравнение").AutoFilter.Sort.SortFields.Add Key:= _
+        Range("E2:E1765"), SortOn:=xlSortOnValues, Order:=xlDescending, DataOption _
+        :=xlSortNormal
+    With ActiveWorkbook.Worksheets("Сравнение").AutoFilter.Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    Range("F2").Select
+    
+
+    Range("F2").Select
+    ActiveCell.FormulaR1C1 = "New material"
+    Range("F2").Select
+    Selection.AutoFill Destination:=Range("F2:G2"), Type:=xlFillDefault
+    Range("F2:G2").Select
+    Columns("G:G").EntireColumn.AutoFit
+    Range("H2").Select
+    Columns("F:F").EntireColumn.AutoFit
+    Range("C1:D1").Select
+    Selection.Copy
+    Range("F1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    
+    Range("F3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=VLOOKUP(Сравнение!C[-5],'Расчёт резерва'!C[-5]:C[1],7,FALSE)"
+    Range("G3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=VLOOKUP(Сравнение!C[-6],'в прошлом месяце'!C[-6]:C,7,FALSE)"
+    Range("F1:G1").Select
+    Selection.Copy
+    Range("I1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    
+    Range("I2").Select
+    ActiveCell.FormulaR1C1 = "moved 1st"
+    Range("I2").Select
+    Selection.Copy
+    Range("J2").Select
+    ActiveSheet.Paste
+    Columns("I:I").EntireColumn.AutoFit
+    Range("I3").Select
+    Columns("J:J").EntireColumn.AutoFit
+    Application.CutCopyMode = False
+    Range("I3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=VLOOKUP(Сравнение!C[-8],'Расчёт резерва'!C[-8]:C[-1],8,FALSE)"
+    Range("J3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=VLOOKUP(Сравнение!C[-9],'в прошлом месяце'!C[-9]:C[-2],8,FALSE)"
+    Range("F3:J3").Select
+    Selection.AutoFill Destination:=Range("F3:J1765")
+    Range("F3:J1765").Select
+    ActiveWindow.SmallScroll Down:=102
+    ActiveWindow.ScrollRow = 73
+    ActiveWindow.ScrollRow = 28
+    ActiveWindow.ScrollRow = 1
+    Rows("2:2").Select
+    Selection.AutoFilter
+    Selection.AutoFilter
+    Range("F3:J3").Select
+    Range(Selection, Selection.End(xlDown)).Select
+   
+    ActiveSheet.Range("$A$2:$J$1765").AutoFilter Field:=6
+    Range("F3:J3").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    Selection.Replace What:="X", Replacement:="1", LookAt:=xlPart, _
+        SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+        ReplaceFormat:=False
+    Range("K3").Select
+    Application.CutCopyMode = False
+    
+    Range("G14").Select
+    ActiveWindow.SmallScroll Down:=6
+    Windows("Резерв.xlsm").Activate
+    ActiveWindow.SmallScroll Down:=-6
+    Range("H3").Select
+    ActiveCell.FormulaR1C1 = "=RC[-1]-RC[-2]"
+    Range("H3").Select
+    Selection.AutoFill Destination:=Range("H3:H1765")
+    Range("H3:H1765").Select
+    Range("H2").Select
+    ActiveCell.FormulaR1C1 = "Изменение"
+    Range("H2").Select
+    Selection.Copy
+    Range("K2").Select
+    ActiveSheet.Paste
+    Range("H3").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Range("K3").Select
+    ActiveSheet.Paste
+    Range("K3").Select
+    Application.CutCopyMode = False
+    ActiveCell.FormulaR1C1 = "=RC[-1]-RC[-2]"
+    Range("K3").Select
+    Selection.AutoFill Destination:=Range("K3:K1765")
+    Range("K3:K1765").Select
+    Columns("E:E").Select
+    Selection.Style = "Currency"
+    Columns("C:D").Select
+    Selection.Style = "Currency"
+    Range("L3").Select
+    Columns("K:K").ColumnWidth = 9.73
+    Rows("1:1").RowHeight = 44
+    Rows("1:1").Select
+    With Selection
+        .HorizontalAlignment = xlGeneral
+        .VerticalAlignment = xlBottom
+        .WrapText = True
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+    Range("F1:G1").Select
+    Selection.Copy
+    Range("L1").Select
+    ActiveSheet.Paste
+    Range("L2").Select
+    Sheets("Расчёт резерва").Select
+    Range("D1").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Sheets("Сравнение").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    
+    Selection.AutoFill Destination:=Range("L2:M2"), Type:=xlFillDefault
+    Range("L2:M2").Select
+    Range("L2").Select
+    Selection.Copy
+    Range("A2:K2").Select
+    Range("K2").Activate
+    Selection.PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+    Range("M3").Select
+    Selection.PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+    Application.CutCopyMode = False
+    Range("L3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('Расчёт резерва'!C[-8],'Расчёт резерва'!C[-11],Сравнение!C[-11])"
+    Range("L3").Select
+    Selection.AutoFill Destination:=Range("L3:L1765")
+    Range("L3:L1765").Select
+    Sheets("Сравнение").Select
+    Range("M3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('в прошлом месяце'!C[-9],'в прошлом месяце'!C[-12],Сравнение!C[-12])"
+    Range("M3").Select
+    Selection.AutoFill Destination:=Range("M3:M1765")
+    Range("M3:M1765").Select
+    Range("L3").Select
+    Selection.Copy
+    Range("M3").Select
+    Selection.PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+    Application.CutCopyMode = False
+    Selection.AutoFill Destination:=Range("M3:M1765")
+    Range("M3:M1765").Select
+    Range("H2").Select
+    Selection.Copy
+    Range("N2").Select
+    ActiveSheet.Paste
+    Range("N3").Select
+    Application.CutCopyMode = False
+    ActiveCell.FormulaR1C1 = "=RC[-2]-RC[-1]"
+    Range("N3").Select
+    Selection.AutoFill Destination:=Range("N3:N1765")
+    Range("N3:N1765").Select
+    
+    Columns("M:M").ColumnWidth = 9.36
+    Columns("M:M").ColumnWidth = 11.36
+    
+    Range("O3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('Расчёт резерва'!C[-4],'Расчёт резерва'!C[-14],Сравнение!C[-14])"
+    Range("O4").Select
+    Sheets("Расчёт резерва").Select
+    Range("K1").Select
+    Selection.Copy
+    Sheets("Сравнение").Select
+    Range("O2").Select
+    ActiveSheet.Paste
+    Range("J4").Select
+    ActiveWindow.ScrollColumn = 2
+    Range("O3").Select
+    Application.CutCopyMode = False
+    Range("P3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=SUMIFS('в прошлом месяце'!C[-5],'в прошлом месяце'!C[-15],Сравнение!C[-15])"
+    Range("O2").Select
+    Selection.Copy
+    Range("P2").Select
+    ActiveSheet.Paste
+    Range("L1:M1").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Range("O1").Select
+    ActiveSheet.Paste
+    Range("O3:P3").Select
+    Application.CutCopyMode = False
+    Selection.AutoFill Destination:=Range("O3:P1765")
+    Range("O3:P1765").Select
+    Range("P2").Select
+    ActiveWindow.SmallScroll ToRight:=2
+    Range("Q3").Select
+    ActiveCell.FormulaR1C1 = "=RC[-1]-RC[-2]"
+    Range("Q4").Select
+    
+    Range("Q3").Select
+    Selection.AutoFill Destination:=Range("Q3:Q1765")
+    Range("Q3:Q1765").Select
+    Range("N2").Select
+    Selection.Copy
+    Range("Q2").Select
+    ActiveSheet.Paste
+    Range("N2").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Range("J2:V2").Select
+    Selection.PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+    Application.CutCopyMode = False
+    With Selection
+        .HorizontalAlignment = xlGeneral
+        .VerticalAlignment = xlTop
+        .WrapText = True
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+    Range("Q1").Select
+    Columns("Q:Q").EntireColumn.AutoFit
+    Range("R3").Select
+    ActiveCell.FormulaR1C1 = "=if"
+    Range("R3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>0,""упала оборачиваемость"","""")"
+    Range("R3").Select
+    Selection.AutoFill Destination:=Range("R3:R1765")
+    Range("R3:R1765").Select
+    Columns("O:O").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("S3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>0,""упала оборачиваемость;"","""")"
+    Range("S3").Select
+    Selection.AutoFill Destination:=Range("S3:S1765")
+    Range("S3:S1765").Select
+    Range("O3").Select
+    ActiveCell.FormulaR1C1 = "=if"
+    Range("O3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>0,""увеличился склад;"","""")"
+    Range("O3").Select
+    Selection.AutoFill Destination:=Range("O3:O1765")
+    Range("O3:O1765").Select
+    Columns("L:L").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("L3").Select
+    ActiveCell.FormulaR1C1 = "="
+    
+    Range("L3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>1,"" пропала галочка moved first"","""")"
+    Range("L3").Select
+    Selection.AutoFill Destination:=Range("L3:L1765")
+    Range("L3:L1765").Select
+    Columns("I:I").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("I3").Select
+    ActiveCell.FormulaR1C1 = _
+        "=IF(RC[-1]>=1,"" пропала галочка New Material; "","""")"
+    Range("I3").Select
+    Selection.AutoFill Destination:=Range("I3:I1765")
+    Range("I3:I1765").Select
+    Range("M3").Select
+    ActiveCell.FormulaR1C1 = "=IF(RC[-1]>=1,"" пропала галочка moved first"","""")"
+    Range("M3").Select
+    Selection.AutoFill Destination:=Range("M3:M1765")
+    Range("M3:M1765").Select
+    
+    Range("Q3").Select
+    ActiveWindow.ScrollColumn = 5
+    Columns("U:U").EntireColumn.AutoFit
+    Range("V3").Select
+    ActiveCell.FormulaR1C1 = "=CONCATENATE(RC[-13],RC[-9],RC[-5],RC[-1])"
+    Range("V3").Select
+    Selection.AutoFill Destination:=Range("V3:V1765")
+    Range("V3:V1765").Select
+    Range("V2").Select
+    ActiveCell.FormulaR1C1 = "Причина"
+    Range("V3").Select
+End Sub
